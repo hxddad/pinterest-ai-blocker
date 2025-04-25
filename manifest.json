@@ -17,10 +17,9 @@
             "48": "/images/logo-48.png",
             "128": "/images/logo-128.png"
         },
-        "default_popup": "popup.html"
+        "default_popup": "popup/popup.html"
     },
-    "permissions": ["activeTab", "scripting"]
-,
+    "permissions": ["activeTab", "scripting", "storage"],
     "host_permissions": [
         "https://www.pinterest.com/*"
     ]
