@@ -1,17 +1,47 @@
-// Get the toggle switch element
-const toggleSwitch = document.getElementById('toggle-extension');
+document.addEventListener('DOMContentLoaded', () => {
+    const toggleSwitch = document.getElementById('toggle-extension');
+    if (!toggleSwitch) {
+      console.error("Toggle element not found!");
+      return;
+    }
+  
+    chrome.storage.local.get(['extensionEnabled'], (result) => {
+      toggleSwitch.checked = result.extensionEnabled || false;
+    });
+  
+    toggleSwitch.addEventListener('change', () => {
+      const isEnabled = toggleSwitch.checked;
+      chrome.storage.local.set({ extensionEnabled: isEnabled }, () => {
+        console.log(`Extension is now ${isEnabled ? 'ON' : 'OFF'}`);
+      });
+    });
 
-// Load the saved state from chrome.storage.local
-chrome.storage.local.get(['extensionEnabled'], (result) => {
-  toggleSwitch.checked = result.extensionEnabled || false; // Default to false if not set
-});
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log("Popup loaded");
+      
+        const toggleSwitch = document.getElementById('toggle-extension');
+        if (!toggleSwitch) {
+          console.error("Toggle element not found!");
+          return;
+        }
+      
+        chrome.storage.local.get(['extensionEnabled'], (result) => {
+          console.log("Loaded state from storage:", result);
+          toggleSwitch.checked = result.extensionEnabled || false;
+        });
+      
+        toggleSwitch.addEventListener('change', () => {
+          console.log("Toggle was changed!");
+          
+          const isEnabled = toggleSwitch.checked;
+          console.log(`New toggle state: ${isEnabled}`);
+      
+          chrome.storage.local.set({ extensionEnabled: isEnabled }, () => {
+            console.log(`Extension is now ${isEnabled ? 'ON' : 'OFF'}`);
+          });
+        });
+      });
 
-// Listen for changes to the toggle switch
-toggleSwitch.addEventListener('change', () => {
-  const isEnabled = toggleSwitch.checked;
-
-  // Save the state to chrome.storage.local
-  chrome.storage.local.set({ extensionEnabled: isEnabled }, () => {
-    console.log(`Extension is now ${isEnabled ? 'ON' : 'OFF'}`);
+      
   });
-});
+  
