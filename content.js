@@ -1,35 +1,55 @@
-const keywords = ["ai", "ai generated", "artificial intelligence", "dalle", "midjourney"];
-const delay = 1000;
+// content.js
+import { sleep } from './utils.js';
+import { pinContainsKeywords, commentsContainKeywords, profileContainsKeywords } from './scanner.js';
+import { removeBadPins, closeAndRemovePin } from './actions.js';
 
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+async function handleOpenedPin() {
+  const modal = document.querySelector('[data-test-id="closeup-content"]');
+  if (!modal) return;
 
-function pinContainsKeywords(pin) {
-  const text = pin.innerText.toLowerCase();
-  return keywords.some(keyword => text.includes(keyword));
-}
-
-async function scanAndRemovePins() {
-  const pins = document.querySelectorAll('div[data-test-id="pin"]');
-
-  for (const pin of pins) {
-    try {
-      pin.scrollIntoView({behavior: "smooth"});
-      await sleep(300);
-
-      if (pinContainsKeywords(pin)) {
-        console.log("Removing unwanted pin...");
-        pin.remove();
-        await sleep(delay);
-      }
-    } catch (err) {
-      console.error("Error processing a pin:", err);
-    }
+  if (pinContainsKeywords(modal)) {
+    console.log("Bad pin content detected, removing...");
+    closeAndRemovePin();
+    return;
   }
 
-  console.log("Finished scanning pins.");
+  await sleep(500);
+  if (commentsContainKeywords(modal)) {
+    console.log("Bad comments detected, removing...");
+    closeAndRemovePin();
+    return;
+  }
+
+  const posterLink = modal.querySelector('a[href*="/user/"], a[href*="/profile/"], a[href*="/@"]');
+  if (posterLink) {
+    console.log("Navigating to poster profile...");
+    posterLink.click();
+
+    await sleep(1500);
+
+    if (profileContainsKeywords()) {
+      console.log("Bad poster profile detected, removing...");
+      window.history.back();
+      await sleep(1000);
+      removeBadPins();
+    } else {
+      console.log("Profile looks clean.");
+      window.history.back();
+    }
+  }
 }
 
-// Run scan every few seconds
-setInterval(scanAndRemovePins, 5000);
+// Constantly clean feed
+setInterval(() => {
+  removeBadPins();
+}, 2000);
+
+// Detect click on pin
+document.addEventListener('click', async (e) => {
+  const pin = e.target.closest('div[data-test-id="pin"]');
+  if (pin) {
+    console.log("Pin clicked, handling...");
+    await sleep(1000);
+    await handleOpenedPin();
+  }
+});

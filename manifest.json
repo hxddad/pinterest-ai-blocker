@@ -23,7 +23,7 @@
     
     "content_scripts": [
         {
-          "matches": ["*://*www.pinterest.com/*"],
+          "matches": ["*://*.pinterest.com/*"],
           "js": ["content.js"]
         }
       ],
