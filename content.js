@@ -92,30 +92,69 @@ function wrapPinContent(pinElement) {
     visualContent.classList.add('ai-blur');
 }
 
+function markPinAsSuspicious(pinElement) {
+    if (pinElement.classList.contains('suspicious-pin')) return;
+
+    // Find the main visual content (image/video)
+    const visualContent =  pinElement.querySelector('[data-test-id="pinrep-image"]');
+
+    if (!visualContent) return;
+
+    // Create container wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'suspicious-pin-container';
+
+    // Wrap the visual content
+    visualContent.parentNode.insertBefore(wrapper, visualContent);
+    wrapper.appendChild(visualContent);
+
+    // Add "Suspicious" label
+    const label = document.createElement('div');
+    label.className = 'suspicious-label';
+    label.textContent = 'Suspicious Content';
+    wrapper.appendChild(label);
+
+    // Mark as processed
+    pinElement.classList.add('suspicious-pin');
+    visualContent.classList.add('suspicious-blur');
+}
+
 // Process pins to detect AI content
 function processAIPins() {
-  function normalizeText(text) {
-    if (!text) return "";
-    return text
-        .toLowerCase() // Convert to lowercase
-        .replace(/[^a-z0-9\s]/g, "") // Remove special characters
-        .replace(/\s+/g, " ") // Replace multiple spaces with a single space
-        .trim(); // Trim leading and trailing spaces
-  }
+    function normalizeText(text) {
+        if (!text) return "";
+        return text
+            .toLowerCase() // Convert to lowercase
+            .replace(/[^a-z0-9\s]/g, "") // Remove special characters
+            .replace(/\s+/g, " ") // Replace multiple spaces with a single space
+            .trim(); // Trim leading and trailing spaces
+    }
+
     const selectors = [
+        '[data-test-id="ai-generated-label"]',
         '[data-test-id="pin"]',
         '[data-test-id="pinWrapper"]',
         'div[role="listitem"]',
         '[class*="Pin__Wrapper"]'
     ].join(',');
-    
+
     document.querySelectorAll(selectors).forEach(pin => {
         const pinText = normalizeText(pin.textContent);
-        const isAI = AI_KEYWORDS.some(keyword => 
+
+        if (!pinText) {
+            // Mark as suspicious if no text is found
+            console.log("Suspicious pin detected: No text content.");
+            markPinAsSuspicious(pin);
+            return;
+        }
+
+        const isAI = AI_KEYWORDS.some(keyword =>
             pinText.includes(normalizeText(keyword))
         );
-        
-        if (isAI) wrapPinContent(pin);
+
+        if (isAI) {
+            wrapPinContent(pin);
+        }
     });
 }
 
@@ -140,3 +179,4 @@ window.addEventListener('scroll', () => {
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(processAIPins, 300);
 }, { passive: true });
+
