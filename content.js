@@ -1,55 +1,86 @@
-// content.js
-import { sleep } from './utils.js';
-import { pinContainsKeywords, commentsContainKeywords, profileContainsKeywords } from './scanner.js';
-import { removeBadPins, closeAndRemovePin } from './actions.js';
+// Predefined keywords with various formats
+const AI_KEYWORDS = [
+    'ai generated', 'ai-generated', 'ai art', 'aiart', 'ai created',
+    'midjourney', 'dalle', 'dall-e', 'stable diffusion', 'leonardo ai',
+    '#aigenerated', '#aiart', '#midjourneyart', 'generative ai'
+];
 
-async function handleOpenedPin() {
-  const modal = document.querySelector('[data-test-id="closeup-content"]');
-  if (!modal) return;
-
-  if (pinContainsKeywords(modal)) {
-    console.log("Bad pin content detected, removing...");
-    closeAndRemovePin();
-    return;
-  }
-
-  await sleep(500);
-  if (commentsContainKeywords(modal)) {
-    console.log("Bad comments detected, removing...");
-    closeAndRemovePin();
-    return;
-  }
-
-  const posterLink = modal.querySelector('a[href*="/user/"], a[href*="/profile/"], a[href*="/@"]');
-  if (posterLink) {
-    console.log("Navigating to poster profile...");
-    posterLink.click();
-
-    await sleep(1500);
-
-    if (profileContainsKeywords()) {
-      console.log("Bad poster profile detected, removing...");
-      window.history.back();
-      await sleep(1000);
-      removeBadPins();
-    } else {
-      console.log("Profile looks clean.");
-      window.history.back();
-    }
-  }
+// Normalize text for comparison
+function normalizeText(text) {
+    return text.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9#]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
 }
 
-// Constantly clean feed
-setInterval(() => {
-  removeBadPins();
-}, 2000);
+// Wrap pin content for proper layering
+function wrapPinContent(pinElement) {
+    if (pinElement.classList.contains('ai-processed')) return;
+    
+    // Find the main visual content (image/video)
+    const visualContent = pinElement.querySelector('img, video') || 
+                         pinElement.querySelector('[data-test-id="pinrep-image"]');
+    
+    if (!visualContent) return;
+    
+    // Create container wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'ai-pin-container';
+    
+    // Wrap the visual content
+    visualContent.parentNode.insertBefore(wrapper, visualContent);
+    wrapper.appendChild(visualContent);
+    
+    // Add label
+    const label = document.createElement('div');
+    label.className = 'ai-label';
+    label.textContent = 'AI Generated';
+    wrapper.appendChild(label);
+    
+    // Mark as processed
+    pinElement.classList.add('ai-processed');
+    visualContent.classList.add('ai-blur');
+}
 
-// Detect click on pin
-document.addEventListener('click', async (e) => {
-  const pin = e.target.closest('div[data-test-id="pin"]');
-  if (pin) {
-    console.log("Pin clicked, handling...");
-    await sleep(1000);
-    await handleOpenedPin();
-  }
+// Process pins to detect AI content
+function processAIPins() {
+    const selectors = [
+        '[data-test-id="pin"]',
+        '[data-test-id="pinWrapper"]',
+        'div[role="listitem"]',
+        '[class*="Pin__Wrapper"]'
+    ].join(',');
+    
+    document.querySelectorAll(selectors).forEach(pin => {
+        const pinText = normalizeText(pin.textContent);
+        const isAI = AI_KEYWORDS.some(keyword => 
+            pinText.includes(normalizeText(keyword))
+        );
+        
+        if (isAI) wrapPinContent(pin);
+    });
+}
+
+// Initial processing with delay
+setTimeout(processAIPins, 800);
+
+// Mutation observer for dynamic content
+const observer = new MutationObserver(() => {
+    requestAnimationFrame(processAIPins);
 });
+
+observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: false,
+    characterData: false
+});
+
+// Handle scroll loading
+let scrollTimeout;
+window.addEventListener('scroll', () => {
+    clearTimeout(scrollTimeout);
+    scrollTimeout = setTimeout(processAIPins, 300);
+}, { passive: true });
