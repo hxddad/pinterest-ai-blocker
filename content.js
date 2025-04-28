@@ -3,6 +3,44 @@ const CONFIG = window.EXTENSION_CONFIG;
 const API_USER = CONFIG.API_USER;
 const API_SECRET = CONFIG.API_SECRET;
 
+// Add at the top of file
+const API_LIMIT = 200;
+const API_COUNTER_KEY = 'ai-detection-api-counter';
+const API_COUNTER_DATE_KEY = 'ai-detection-api-counter-date';
+
+// Add function to manage API counter
+const apiCounter = {
+    async get() {
+        const count = parseInt(localStorage.getItem(API_COUNTER_KEY) || '0');
+        const date = localStorage.getItem(API_COUNTER_DATE_KEY);
+        const today = new Date().toDateString();
+        
+        if (date !== today) {
+            // Reset counter for new day
+            await this.reset();
+            return 0;
+        }
+        return count;
+    },
+
+    async increment() {
+        const count = await this.get() + 1;
+        localStorage.setItem(API_COUNTER_KEY, count.toString());
+        localStorage.setItem(API_COUNTER_DATE_KEY, new Date().toDateString());
+        return count;
+    },
+
+    async reset() {
+        localStorage.setItem(API_COUNTER_KEY, '0');
+        localStorage.setItem(API_COUNTER_DATE_KEY, new Date().toDateString());
+        return 0;
+    },
+
+    async hasReachedLimit() {
+        return (await this.get()) >= API_LIMIT;
+    }
+};
+
 // Rate limiting utility
 // Add progress tracking
 let processedCount = 0;
@@ -118,22 +156,44 @@ function debounce(func, wait) {
 function extractImageUrls() {
     const images = document.querySelectorAll('img');
     
-    // Convert to array and add viewport checking
     return Array.from(images)
-        .sort((a, b) => {
-            const aVisible = isInViewport(a);
-            const bVisible = isInViewport(b);
-            return (bVisible - aVisible); // Visible images first
-        })
-        .map(img => img.src)
-        .filter(src => {
-            if (!src || processedUrls.has(src)) return false;
-            const isValid = !src.includes('data:image') && 
-                          !src.includes('75x75_RS') &&
-                          !src.includes('_50x.') &&
-                          !src.includes('_75x.');
+        .filter(img => {
+            // Skip tiny images (likely icons)
+            if (img.width < 100 || img.height < 100) return false;
+            
+            // Skip if already processed
+            if (processedUrls.has(img.src)) return false;
+
+            // Skip non-content images
+            const isValid = !img.src.includes('data:image') && 
+                          !img.src.includes('75x75_RS') &&
+                          !img.src.includes('_50x.') &&
+                          !img.src.includes('_75x.') &&
+                          !img.src.includes('avatar') &&
+                          !img.src.includes('icon') &&
+                          !img.src.includes('logo');
+
             return isValid;
-        });
+        })
+        // Prioritize larger, visible images
+        .sort((a, b) => {
+            const aScore = getImagePriority(a);
+            const bScore = getImagePriority(b);
+            return bScore - aScore;
+        })
+        .map(img => img.src);
+}
+
+function getImagePriority(img) {
+    let score = 0;
+    
+    // Prioritize visible images
+    if (isInViewport(img)) score += 100;
+    
+    // Prioritize larger images
+    score += (img.width * img.height) / 10000;
+    
+    return score;
 }
 
 function isInViewport(element) {
@@ -152,6 +212,12 @@ async function analyzeImageWithSightengine(imageUrl) {
     const cached = await resultCache.get(imageUrl);
     if (cached) {
         return cached;
+    }
+
+    // Check API limit
+    if (await apiCounter.hasReachedLimit()) {
+        console.warn('Daily API limit reached. Skipping analysis.');
+        return null;
     }
 
     try {
@@ -234,6 +300,11 @@ async function analyzeImageWithSightengine(imageUrl) {
                 }
             };
             await resultCache.set(imageUrl, result);
+
+            // Increment counter after successful API call
+            await apiCounter.increment();
+            console.log(`API calls today: ${await apiCounter.get()}/${API_LIMIT}`);
+
             return result;
         }
 
