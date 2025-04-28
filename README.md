@@ -1,6 +1,6 @@
 # 📸 Pintrest AI Blocker — Blur AI-Generated Images on Pinterest
 
-BlurAI is a lightweight Google Chrome extension that automatically **detects and blurs AI-generated images** on your Pinterest feed using the powerful [Sightengine API](https://sightengine.com/).
+This project is a Google Chrome extension that automatically **detects and blurs AI-generated images** on your Pinterest feed using the [Sightengine API](https://sightengine.com/).
 
 **Idea Inspired by:** https://www.youtube.com/watch?v=PR73xDbB24c&t=19s
 [![Watch the video](https://github.com/user-attachments/assets/b6ec37e6-b65f-4c85-b4bf-1a2cb17cd9fa)](https://www.youtube.com/watch?v=PR73xDbB24c)
