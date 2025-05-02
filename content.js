@@ -4,7 +4,7 @@ const API_USER = CONFIG.API_USER;
 const API_SECRET = CONFIG.API_SECRET;
 
 // Add at the top of file
-const API_LIMIT = 200;
+const API_LIMIT = 500;
 const API_COUNTER_KEY = 'ai-detection-api-counter';
 const API_COUNTER_DATE_KEY = 'ai-detection-api-counter-date';
 
